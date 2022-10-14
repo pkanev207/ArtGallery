@@ -6,7 +6,8 @@ const { SALT_ROUNDS } = require('../config/env');
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true, },
-    address: { type: String },
+    address: { type: String, required: true },
+    publications: [{ type: mongoose.Types.ObjectId, ref: 'Publication' }],
 });
 
 userSchema.pre('save', function (next) {
