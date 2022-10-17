@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true, },
     address: { type: String, required: true },
     publications: [{ type: mongoose.Types.ObjectId, ref: 'Publication' }],
+    shares: [{ type: mongoose.Types.ObjectId, ref: 'Publication' }]
 });
 
 userSchema.pre('save', function (next) {

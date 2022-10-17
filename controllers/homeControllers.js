@@ -1,6 +1,5 @@
 const router = require('express').Router();
 
-const Publication = require('../models/Publication');
 const publicationService = require('../services/publicationService');
 const userService = require('../services/userService');
 
@@ -14,11 +13,16 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/profile', async (req, res) => {
-    const user = await userService.getOne(req.user._id).lean();
-    // const userPublications = Publication.find({ author: user._id });
-    // console.log(userPublications);
+    const user = await userService
+        .getOne(req.user._id)
+        .populate('publications')
+        .populate('shares')
+        .lean();
 
-    res.render('home/profile', { ...user });
+    const publicationsTitles = user.publications.map(x => x.title).join(', ');
+    const sharesTitles = user.shares.map(x => x.title).join(', ');
+
+    res.render('home/profile', { ...user, publicationsTitles, sharesTitles });
 });
 
 module.exports = router;

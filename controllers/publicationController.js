@@ -2,6 +2,7 @@ const router = require('express').Router();
 
 const { isAuth } = require('../middleware/authMiddleware');
 const publicationService = require('../services/publicationService');
+const userService = require('../services/userService');
 const { preloadPublication, isPublicationAuthor } = require('../middleware/publicationMiddleware');
 const { getErrorMessage } = require('../utils/errorMapper');
 
@@ -14,8 +15,9 @@ router.get('/', async (req, res) => {
 router.get('/:publicationId/details', async (req, res) => {
     const publication = await publicationService.getOneDetailed(req.params.publicationId).lean();
     const isAuthor = publication.author._id == req.user?._id;
-    const isShared = publication.usersShared.map(x => x.toString()).includes(req.user._id);
+    const isShared = publication.usersShared.map(x => x.toString()).includes(req.user?._id);
     // console.log(publication.usersShared[0].toString());
+    // const isShared = publication.usersShared.some(x => x._id == req.user._id);
 
     res.render('publication/details', { ...publication, isAuthor, isShared });
 });
@@ -68,8 +70,11 @@ router.get('/create', isAuth, (req, res) => {
 
 router.post('/create', isAuth, async (req, res) => {
     const publicationData = { ...req.body, author: req.user._id };
+
     try {
-        await publicationService.create(publicationData);
+        const publication = await publicationService.create(publicationData);
+        await userService.addPublication(req.user._id, publication._id);
+
         res.redirect('/publications');
     } catch (error) {
         res.render('publication/create', { ...req.body, error: getErrorMessage(error) });
@@ -78,10 +83,13 @@ router.post('/create', isAuth, async (req, res) => {
 
 router.get('/:publicationId/share', isAuth, async (req, res) => {
     const publication = await publicationService.getOne(req.params.publicationId);
+    const user = await userService.getOne(req.user._id);
 
     publication.usersShared.push(req.user._id);
+    user.shares.push(publication);
 
     await publication.save();
+    await user.save();
 
     res.redirect('/');
 });
