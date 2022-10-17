@@ -1,19 +1,23 @@
 const router = require('express').Router();
 
 const { isAuth } = require('../middleware/authMiddleware');
-const { preloadPublication, isPublicationAuthor } = require('../middleware/publicationMiddleware');
 const publicationService = require('../services/publicationService');
+const { preloadPublication, isPublicationAuthor } = require('../middleware/publicationMiddleware');
 const { getErrorMessage } = require('../utils/errorMapper');
 
 router.get('/', async (req, res) => {
     const publications = await publicationService.getAll().lean();
+
     res.render('publication', { publications });
 });
 
 router.get('/:publicationId/details', async (req, res) => {
     const publication = await publicationService.getOneDetailed(req.params.publicationId).lean();
     const isAuthor = publication.author._id == req.user?._id;
-    res.render('publication/details', { ...publication, isAuthor });
+    const isShared = publication.usersShared.map(x => x.toString()).includes(req.user._id);
+    // console.log(publication.usersShared[0].toString());
+
+    res.render('publication/details', { ...publication, isAuthor, isShared });
 });
 
 
@@ -46,6 +50,16 @@ router.post(
         }
     });
 
+router.get(
+    '/:publicationId/delete',
+    isAuth,
+    preloadPublication,
+    async (req, res) => {
+        await publicationService.delete(req.params.publicationId);
+
+        res.redirect('/publications');
+    }
+);
 
 
 router.get('/create', isAuth, (req, res) => {
@@ -60,6 +74,16 @@ router.post('/create', isAuth, async (req, res) => {
     } catch (error) {
         res.render('publication/create', { ...req.body, error: getErrorMessage(error) });
     }
+});
+
+router.get('/:publicationId/share', isAuth, async (req, res) => {
+    const publication = await publicationService.getOne(req.params.publicationId);
+
+    publication.usersShared.push(req.user._id);
+
+    await publication.save();
+
+    res.redirect('/');
 });
 
 module.exports = router;
